@@ -27,6 +27,9 @@ ProtectSystem=full
 ProtectHome=read-only
 PrivateTmp=yes
 
+# allow writing to /etc/consul.d/
+ReadWritePaths=/etc/consul.d/
+
 # override to allow agent to sudo
 PrivateDevices=no
 

@@ -23,15 +23,6 @@
     boot: true
     state: mounted
 
-- name: Bootstrap step cli
-  ansible.builtin.command: >-
-    step ca bootstrap --ca-url https://step-ca-ra.rmb938.me \
-      --fingerprint eb136a5118931a2306964469705323521dda8c43d26ec67e1c5508eb123f9c70
-  args:
-    creates: /etc/step/config/defaults.json
-  environment:
-    STEPPATH: /etc/step
-
 # Start Hashicorp
 - name: Install Hashicorp keyring
   ansible.builtin.get_url:
@@ -56,36 +47,86 @@
     state: present
 # End Hashicorp
 
-# Start Vault Agent
-- name: Generate vault tailscale certificates
-  ansible.builtin.command:
-    cmd: >
-      /usr/bin/tailscale cert
-      --cert-file /opt/vault/tls/vault.crt
-      --key-file /opt/vault/tls/vault.key
-      {{ inventory_hostname }}
-    creates: /opt/vault/tls/vault.crt
+# Start Consul
+- name: Disable Consul
+  ansible.builtin.systemd:
+    name: consul
+    # Make sure consul service is disabled, only consul-template-consul should start it
+    enabled: false
 
-- name: Own vault tailscale certificates to vault
+- name: Make consul tls dir
   ansible.builtin.file:
-    path: "{{ item }}"
+    path: /opt/consul/tls
+    state: directory
+    mode: "0770"
+    owner: consul
+    group: consul
+
+- name: Create Consul Certificates
+  ansible.builtin.command: >-
+    step ca certificate {{ ansible_fqdn }}
+    /opt/consul/tls/https.crt
+    /opt/consul/tls/https.key
+    --ca-url https://step-ca.us-homelab1.hl.rmb938.me:8443
+    --root /usr/local/share/ca-certificates/smallstep-homelab-prod.crt
+  args:
+    creates: "/opt/consul/tls/https.crt"
+
+- name: Own Consul certificates
+  ansible.builtin.file:
+    path: /opt/consul/tls/{{ item }}
+    owner: consul
+    group: consul
+    mode: "0600"
+  with_items:
+    - https.crt
+    - https.key
+
+- name: Cron to renew consul certificates
+  ansible.builtin.cron:
+    name: "renew consul certificates"
+    special_time: "hourly"
+    job: >-
+      step ca renew /opt/consul/tls/https.crt
+      /opt/consul/tls/https.key
+      --ca-url https://step-ca.us-homelab1.hl.rmb938.me:8443
+      --root /usr/local/share/ca-certificates/smallstep-homelab-prod.crt
+      --force --mtls=false --expires-in 720h --exec "systemctl try-reload-or-restart consul"
+    state: present
+# End Consul
+
+# Start Vault Agent
+- name: Create Vault Certificates
+  ansible.builtin.command: >-
+    step ca certificate {{ ansible_fqdn }}
+    /opt/vault/tls/vault.crt
+    /opt/vault/tls/vault.key
+    --ca-url https://step-ca.us-homelab1.hl.rmb938.me:8443
+    --root /usr/local/share/ca-certificates/smallstep-homelab-prod.crt
+  args:
+    creates: "/opt/vault/tls/vault.crt"
+
+- name: Own Vault certificates
+  ansible.builtin.file:
+    path: /opt/vault/tls/{{ item }}
     owner: vault
     group: vault
     mode: "0600"
   with_items:
-    - "/opt/vault/tls/vault.crt"
-    - "/opt/vault/tls/vault.key"
+    - vault.crt
+    - vault.key
 
-- name: Cronjob to renew vault tailscale certificates
+- name: Cron to renew vault certificates
   ansible.builtin.cron:
-    name: Renew tailscale Vault certificates
-    special_time: daily
+    name: "renew vault certificates"
+    special_time: "hourly"
     job: >-
-      /usr/bin/tailscale cert
-      --cert-file /opt/vault/tls/vault.crt
-      --key-file /opt/vault/tls/vault.key
-      {{ inventory_hostname }} &&
-      /usr/bin/chown vault:vault /opt/vault/tls/vault.crt /opt/vault/tls/vault.key
+      step ca renew /opt/vault/tls/vault.crt
+      /opt/vault/tls/vault.key
+      --ca-url https://step-ca.us-homelab1.hl.rmb938.me:8443
+      --root /usr/local/share/ca-certificates/smallstep-homelab-prod.crt
+      --force --mtls=false --expires-in 720h --exec --exec "systemctl try-reload-or-restart vault"
+    state: present
 
 - name: Configure Vault Agent
   ansible.builtin.template:
@@ -133,7 +174,7 @@
     nopassword: true
     validation: required
     commands:
-      - /usr/bin/systemd reload consul
+      - /usr/bin/systemctl reload-or-restart consul
     state: present
 
 - name: Create Consul Template Dir
@@ -161,7 +202,7 @@
     owner: consul
     group: consul
 
-- name: Place Consul Template for Consul Templates
+- name: Place Consul Template for Consul Templates Files
   ansible.builtin.copy:
     src: "{{ item }}"
     dest: "/etc/consul-template/templates/consul/{{ item | basename }}"
@@ -170,7 +211,17 @@
     group: consul
   with_fileglob:
     - ../files/etc/consul-template/templates/consul/*.ctmpl
-  register: consul_template_consul_templates
+  register: consul_template_consul_templates_files
+
+- name: Place Consul Template for Consul Templates Templates
+  ansible.builtin.template:
+    src: "{{ item }}"
+    dest: "/etc/consul-template/templates/consul/{{ item | basename }}"
+    mode: "0644"
+    owner: consul
+    group: consul
+  with_fileglob:
+    - ../templates/etc/consul-template/templates/consul/*.ctmpl
 
 - name: Consul Template for Consul SystemD
   ansible.builtin.template:
@@ -193,81 +244,6 @@
 - name: Restart Consul Template for Consul if config changed # noqa: no-handler
   ansible.builtin.systemd:
     name: consul-template-consul
-    state: restarted
-  when: consul_template_consul_config.changed or consul_template_consul_templates.changed
+    state: reloaded
+  when: consul_template_consul_config.changed or consul_template_consul_templates_files.changed
 # End Consul Template for Consul
-
-- name: Install hvac
-  ansible.builtin.package:
-    name: python3-hvac
-    state: present
-
-- name: Make consul tls dir
-  ansible.builtin.file:
-    path: /opt/consul/tls
-    state: directory
-    mode: "0770"
-    owner: consul
-    group: consul
-
-- name: Create Consul Certificates
-  ansible.builtin.command: >-
-    step ca certificate {{ ansible_fqdn }} /opt/consul/tls/https.crt /opt/consul/tls/https.key
-  args:
-    creates: "/opt/consul/tls/https.crt"
-  environment:
-    STEPPATH: "/etc/step"
-
-- name: Own Consul certificates
-  ansible.builtin.file:
-    path: /opt/consul/tls/{{ item }}
-    owner: consul
-    group: consul
-    mode: "0600"
-  with_items:
-    - https.crt
-    - https.key
-
-- name: Cron to renew consul certificates
-  ansible.builtin.cron:
-    name: "renew consul certificates"
-    special_time: "hourly"
-    job: >-
-      STEPPATH=/etc/step step ca renew /opt/consul/tls/https.crt /opt/consul/tls/https.key
-      --force --mtls=false --expires-in 720h --exec "systemctl reload consul"
-    state: present
-
-- name: Read Consul Encrypt Key from Vault
-  community.hashi_vault.vault_kv1_get:
-    url: http://127.0.0.1:8100
-    auth_method: none
-    engine_mount_point: secret
-    path: consul/encrypt_key
-  register: consul_encrypt_key
-
-- name: Read Consul Management Token from Vault
-  community.hashi_vault.vault_kv1_get:
-    url: http://127.0.0.1:8100
-    auth_method: none
-    engine_mount_point: secret
-    path: consul/management_token
-  register: consul_management_token
-
-- name: Configure Consul
-  ansible.builtin.template:
-    src: etc/consul.d/consul.hcl
-    dest: /etc/consul.d/consul.hcl
-    mode: "0600"
-  register: consul_config
-
-- name: Start and enable Consul
-  ansible.builtin.systemd:
-    name: consul
-    state: started
-    enabled: true
-
-- name: Restart consul if config changed # noqa: no-handler
-  ansible.builtin.systemd:
-    name: consul
-    state: restarted
-  when: consul_config.changed

@@ -5,7 +5,7 @@ Ansible to Install [Hashicorp Consul](https://www.consul.io/) on Ubuntu
 
 * Tailscale installed and configured for ssh
     ```bash
-    sudo tailscale up --ssh --advertise-tags "tag:servers,tag:hashiconsulserver,tag:hvpolicy-default,tag:hvpolicy-hashiconsulserver"
+    sudo tailscale up --hostname "$(hostname -f | awk -F"." '{print $3}')-$(hostname -f | awk -F"." '{print $2}')-$(hostname)" --ssh --advertise-tags "tag:servers,tag:cloud-$(hostname -f | awk -F"." '{print $3}')-region-$(hostname -f | awk -F"." '{print $2}'),tag:hashiconsul"
     ```
 
 ## Run

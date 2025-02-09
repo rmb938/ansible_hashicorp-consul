@@ -11,7 +11,7 @@ template {
   create_dest_dirs = false
   perms = "0600"
   exec {
-    command = "sudo systemd reload consul || true"
+    command = "sudo systemctl reload-or-restart consul || true"
   }
 }
 
@@ -21,7 +21,7 @@ template {
   create_dest_dirs = false
   perms = "0600"
   exec {
-    command = "sudo systemd reload consul || true"
+    command = "sudo systemctl reload-or-restart consul || true"
   }
 }
 
@@ -32,7 +32,7 @@ template {
   error_on_missing_key = true
   perms = "0600"
   exec {
-    command = "sudo systemd reload consul || true"
+    command = "sudo systemctl reload-or-restart consul || true"
   }
 }
 
@@ -42,6 +42,16 @@ template {
   create_dest_dirs = false
   perms = "0600"
   exec {
-    command = "sudo systemd reload consul || true"
+    command = "sudo systemctl reload-or-restart consul || true"
+  }
+}
+
+template {
+  source = "/etc/consul-template/templates/consul/00_consul.hcl.ctmpl"
+  destination = "/etc/consul.d/00_consul.hcl"
+  create_dest_dirs = false
+  perms = "0600"
+  exec {
+    command = "sudo systemctl reload-or-restart consul || true"
   }
 }

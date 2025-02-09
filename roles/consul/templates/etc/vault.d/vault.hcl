@@ -1,7 +1,11 @@
 # {{ ansible_managed }}
 
 vault {
-  address = "https://hashi-vault-1.tailnet-047c.ts.net:8200"
+  # Vault agent will connect to the Vault that is the same number as itself.
+  # The HAProxy isn't setup yet so we are having each consul connect to a
+  # unique Vault. This will allow some consul servers to stay online when
+  # a single vault server is down
+  address = "https://hashi-vault-{{ ansible_hostname[-1] }}.us-homelab1.hl.rmb938.me:8200"
   retry {
     num_retries = 5
   }
@@ -9,7 +13,7 @@ vault {
 
 auto_auth {
   method "cert" {
-    mount_path = "auth/tailscale-cert"
+    mount_path = "auth/step-cert"
     config {
       client_cert = "/opt/vault/tls/vault.crt"
       client_key = "/opt/vault/tls/vault.key"

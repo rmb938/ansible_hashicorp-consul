@@ -1,11 +1,15 @@
 # {{ ansible_managed }}
 
 node_name          = "{{ ansible_fqdn }}"
-datacenter         = "us-homelab1"
-primary_datacenter = "us-homelab1"
+datacenter         = "hl-us-homelab1"
+primary_datacenter = "hl-us-homelab1"
 
 data_dir = "/opt/consul/data"
-encrypt  = "{{ consul_encrypt_key.secret.key }}"
+{% raw %}
+{{ with secret "secret/consul/encrypt_key" }}
+encrypt  = "{{ .Data.key }}"
+{{ end }}
+{% endraw %}
 
 server = true
 
@@ -20,16 +24,16 @@ ui_config {
   enabled = true
 }
 
-bind_addr = "{% raw %}{{ GetInterfaceIP \"eth0\" }}{% endraw %}"
+bind_addr = "{% raw %}{{ `{{ GetInterfaceIP \"eth0\" }}` }}{% endraw %}"
 
-serf_lan               = "{% raw %}{{ GetInterfaceIP \"eth0\" }}{% endraw %}"
+serf_lan               = "{% raw %}{{ `{{ GetInterfaceIP \"eth0\" }}` }}{% endraw %}"
 serf_lan_allowed_cidrs = ["{{ (ansible_default_ipv4.address + '/' + ansible_default_ipv4.netmask) | ansible.utils.ipaddr('network/prefix') }}"]
 
-advertise_addr = "{% raw %}{{ GetInterfaceIP \"eth0\" }}{% endraw %}"
+advertise_addr = "{% raw %}{{ `{{ GetInterfaceIP \"eth0\" }}` }}{% endraw %}"
 
 addresses {
-  https    = "{% raw %}{{ GetInterfaceIP \"eth0\" }}{% endraw %}"
-  grpc_tls = "{% raw %}{{ GetInterfaceIP \"eth0\" }}{% endraw %}"
+  https    = "{% raw %}{{ `{{ GetInterfaceIP \"eth0\" }}` }}{% endraw %}"
+  grpc_tls = "{% raw %}{{ `{{ GetInterfaceIP \"eth0\" }}` }}{% endraw %}"
 }
 
 ports {
@@ -55,7 +59,7 @@ connect {
     rotation_period       = "2160h"
     intermediate_cert_ttl = "8760h"
     private_key_type      = "ec"
-    private_key_bits      = 256
+    private_key_bits      = 384
   }
 }
 
@@ -102,11 +106,15 @@ acl {
   enable_token_persistence = true
 
   tokens {
-    initial_management = "{{ consul_management_token.secret.key }}"
+    {% raw %}
+    {{ with secret "secret/consul/management_token" }}
+    initial_management = "{{ .Data.key }}"
 
-    agent = "{{ consul_management_token.secret.key }}"
-    dns   = "{{ consul_management_token.secret.key }}"
+    agent = "{{ .Data.key }}"
+    dns   = "{{ .Data.key }}"
 
-    config_file_service_registration = "{{ consul_management_token.secret.key }}"
+    config_file_service_registration = "{{ .Data.key }}"
+    {{ end }}
+    {% endraw %}
   }
 }
