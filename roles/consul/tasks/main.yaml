@@ -223,6 +223,7 @@
     group: consul
   with_fileglob:
     - ../templates/etc/consul-template/templates/consul/*.ctmpl
+  register: consul_template_consul_templates
 
 - name: Consul Template for Consul SystemD
   ansible.builtin.template:
@@ -246,5 +247,5 @@
   ansible.builtin.systemd:
     name: consul-template-consul
     state: reloaded
-  when: consul_template_consul_config.changed or consul_template_consul_templates_files.changed
+  when: consul_template_consul_templates.changed or consul_template_consul_config.changed or consul_template_consul_templates_files.changed
 # End Consul Template for Consul

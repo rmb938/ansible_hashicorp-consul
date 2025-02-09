@@ -1,6 +1,6 @@
 # {{ ansible_managed }}
 
-node_name          = "{{ ansible_fqdn }}"
+node_name          = "{{ ansible_hostname }}"
 datacenter         = "hl-us-homelab1"
 primary_datacenter = "hl-us-homelab1"
 
