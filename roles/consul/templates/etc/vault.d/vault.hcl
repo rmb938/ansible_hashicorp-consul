@@ -7,7 +7,8 @@ vault {
   # a single vault server is down
   address = "https://hashi-vault-{{ ansible_hostname[-1] }}.us-homelab1.hl.rmb938.me:8200"
   retry {
-    num_retries = 5
+    # Setting to a large number, vault agent doesn't have unlimited retries.
+    num_retries = 2147483647
   }
 }
 
