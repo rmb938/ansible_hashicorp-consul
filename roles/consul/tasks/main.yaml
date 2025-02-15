@@ -130,7 +130,7 @@
       /opt/vault/tls/vault.key
       --ca-url https://step-ca.us-homelab1.hl.rmb938.me
       --root /usr/local/share/ca-certificates/smallstep-homelab-prod.crt
-      --force --expires-in 720h --exec --exec "systemctl try-reload-or-restart vault"
+      --force --expires-in 720h --exec "systemctl try-reload-or-restart vault"
     state: present
 
 - name: Configure Vault Agent
