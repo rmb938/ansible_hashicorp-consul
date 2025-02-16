@@ -54,6 +54,14 @@
     # Make sure consul service is disabled, only consul-template-consul should start it
     enabled: false
 
+- name: Empty existing consul config
+  ansible.builtin.copy:
+    content: "# $Ansible Managed$"
+    dest: "/etc/consul.d/consul.hcl"
+    mode: "0644"
+    owner: consul
+    group: consul
+
 - name: Make consul tls dir
   ansible.builtin.file:
     path: /opt/consul/tls
