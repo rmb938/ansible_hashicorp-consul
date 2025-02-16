@@ -67,7 +67,6 @@
     step ca certificate {{ ansible_fqdn }}
     /opt/consul/tls/https.crt
     /opt/consul/tls/https.key
-    --san {{ inventory_hostname }}
     --ca-url https://step-ca.us-homelab1.hl.rmb938.me:8443
     --root /usr/local/share/ca-certificates/smallstep-homelab-prod.crt
   args:

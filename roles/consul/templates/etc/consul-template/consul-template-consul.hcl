@@ -51,8 +51,8 @@ template {
 }
 
 template {
-  source = "/etc/consul-template/templates/consul/00_consul.hcl.ctmpl"
-  destination = "/etc/consul.d/00_consul.hcl"
+  source = "/etc/consul-template/templates/consul/consul.hcl.ctmpl"
+  destination = "/etc/consul.d/consul.hcl"
   create_dest_dirs = false
   perms = "0600"
   exec {
