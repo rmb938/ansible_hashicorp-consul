@@ -77,8 +77,8 @@
 # Start Consul Template for Consul
 - name: Configure Consul Template for Consul
   ansible.builtin.template:
-    src: etc/consul-template/consul-template-consul.hcl
-    dest: /etc/consul-template/consul-template-consul.hcl
+    src: etc/consul-template/consul/00_consul.hcl
+    dest: /etc/consul-template/consul/00_consul.hcl
     mode: "0644"
     owner: consul
     group: consul
